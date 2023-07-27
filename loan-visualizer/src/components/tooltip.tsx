@@ -10,7 +10,7 @@ const style = {
 
 const LoanAmountToolTip = (props: any) => {
   const { active, payload } = props;
-  const data: IAmountDateDataPoint = payload[0]?.payload
+  const data: IAmountDateDataPoint = payload?.[0]?.payload
   console.debug(data)
   if (active && data) {
     // const currData = payload && payload.length ? payload[0].payload : null;

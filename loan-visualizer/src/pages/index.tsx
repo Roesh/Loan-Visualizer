@@ -1,11 +1,11 @@
 import Head from 'next/head'
-import Image from 'next/image'
 import { Inter } from 'next/font/google'
 import styles from '@/styles/Home.module.css'
 import { useRouter } from 'next/router'
 import TimeSeriesChart, { IAmountDateDataPoint } from '@/components/time-series-chart'
 import { DateRangeSelector, IDateRange } from '@/components/date-range-selector'
 import { useState } from 'react'
+import { LoanOptionsForm } from '@/components/loan-options-form'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -14,32 +14,9 @@ export default function Home() {
   const [dateRange, setDateRange] = useState<IDateRange>({ start: new Date(), end: new Date() })
   const domain = [new Date(dateRange.start ?? 0).getTime(), new Date(dateRange.end ?? 0).getTime()]
 
-  let { principal, rate, intervalType } = router.query;
+  const { principal, rate, intervalType, loanStartDate, loanEndDate, startDate, endDate } = router.query;
 
-  const data: IAmountDateDataPoint[] = [{
-    principal: 337000,
-    interest: 0,
-    total: 337000,
-    date: new Date(2023, 7, 20).getTime()
-  },
-  {
-    principal: 337000,
-    interest: 10,
-    total: 337010,
-    date: new Date(2023, 7, 21).getTime()
-  },
-  {
-    principal: 337000,
-    interest: 22,
-    total: 337022,
-    date: new Date(2023, 7, 22).getTime()
-  },
-  {
-    principal: 337000,
-    interest: 34,
-    total: 337034,
-    date: new Date(2023, 7, 23).getTime()
-  }]
+  const data = generateGraphData(Number(principal), new Date(loanStartDate as string), new Date(loanEndDate as string), Number(rate)) ?? []
 
   return (
     <>
@@ -52,7 +29,54 @@ export default function Home() {
       <main className={`${styles.main} ${inter.className}`}>
         <TimeSeriesChart chartData={data} domain={domain} />
         <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
+        <LoanOptionsForm />
       </main>
     </>
   )
+}
+
+const generateGraphData = (initialPrincipal: number, loanStartDate: Date, loanEndDate: Date, dailyInterestRate: number) => {
+  const startDateStamp = getZeroedDateStamp(loanStartDate)
+  const endDateStamp = getZeroedDateStamp(loanEndDate)
+
+  if (startDateStamp > endDateStamp) {
+    alert("Start Date cannot be after end date")
+    return;
+  }
+
+  const data: IAmountDateDataPoint[] = []
+  let currentTimeStamp = startDateStamp
+  let currentPrincipal = initialPrincipal
+  let currentInterest = 0
+
+  for (; currentTimeStamp < endDateStamp; currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)) {
+
+    const newData = {
+      date: currentTimeStamp,
+      interest: (dailyInterestRate * 100) * (currentInterest + currentPrincipal),
+      principal: currentPrincipal,
+      total: 0
+    }
+    newData.total = newData.interest + newData.principal
+
+    data.push(newData)
+    currentPrincipal = newData.principal
+    currentInterest = newData.interest
+  }
+
+  console.debug(data, "loan data")
+  return data
+}
+
+const getNextDayTimeStamp = (timestamp: number) => {
+  const nextDate = timestamp + 1000 * 60 * 60 * 24
+  return nextDate
+}
+
+const getZeroedDateStamp = (date: Date) => {
+  const newDate = new Date(2020, 1, 1)
+  newDate.setFullYear(date.getFullYear())
+  newDate.setMonth(date.getMonth())
+  newDate.setDate(date.getDate())
+  return newDate.getTime()
 }

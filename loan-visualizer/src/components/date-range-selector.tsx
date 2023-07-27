@@ -14,6 +14,7 @@ export const DateRangeSelector: React.FC<{ dateRange: IDateRange, setDateRange: 
 
     return (
         <Paper>
+            Select Graph Date Range
             <div style={{display: "flex"}}>
                 <DateInput
                     value={dateRange?.start}
