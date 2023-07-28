@@ -6,17 +6,23 @@ import TimeSeriesChart, { IAmountDateDataPoint } from '@/components/time-series-
 import { DateRangeSelector, IDateRange } from '@/components/date-range-selector'
 import { useState } from 'react'
 import { LoanOptionsForm } from '@/components/loan-options-form'
+import { PaymentSchedule } from '@/components/payment-schedule'
+import { Button } from '@mantine/core'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   const router = useRouter()
   const [dateRange, setDateRange] = useState<IDateRange>({ start: new Date(), end: new Date() })
+  const [data, setData] = useState<IAmountDateDataPoint[]>([])
+
   const domain = [new Date(dateRange.start ?? 0).getTime(), new Date(dateRange.end ?? 0).getTime()]
 
-  const { principal, rate, intervalType, loanStartDate, loanEndDate, startDate, endDate } = router.query;
+  const { principal, rate, intervalType, loanStartDate, loanEndDate, startDate, endDate
+    , scale, paymentAmount, applyFirst } = router.query;
 
-  const data = generateGraphData(Number(principal), new Date(loanStartDate as string), new Date(loanEndDate as string), Number(rate)) ?? []
+  const createGraphData = () => setData(generateGraphData(Number(principal), new Date(loanStartDate as string),
+    new Date(loanEndDate as string), Number(rate), scale as "constant", Number(paymentAmount), applyFirst as "interest") ?? [])
 
   return (
     <>
@@ -28,14 +34,19 @@ export default function Home() {
       </Head>
       <main className={`${styles.main} ${inter.className}`}>
         <TimeSeriesChart chartData={data} domain={domain} />
-        <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} />
+        <Button my={"sm"} onClick={createGraphData}>Generate Data</Button>
+        {/* <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} /> */}
         <LoanOptionsForm />
+        <PaymentSchedule />
       </main>
     </>
   )
 }
 
-const generateGraphData = (initialPrincipal: number, loanStartDate: Date, loanEndDate: Date, dailyInterestRate: number) => {
+const generateGraphData = (initialPrincipal: number, loanStartDate: Date,
+  loanEndDate: Date, dailyInterestRate: number, scale: "constant" | "linear",
+  paymentAmount: number, applyFirst: string
+) => {
   const startDateStamp = getZeroedDateStamp(loanStartDate)
   const endDateStamp = getZeroedDateStamp(loanEndDate)
 
@@ -48,20 +59,49 @@ const generateGraphData = (initialPrincipal: number, loanStartDate: Date, loanEn
   let currentTimeStamp = startDateStamp
   let currentPrincipal = initialPrincipal
   let currentInterest = 0
+  let currentTotalPayment = 0
+
+  let firstDataPoint = {
+    date: currentTimeStamp,
+    interest: 0,
+    principal: currentPrincipal,
+    total: currentPrincipal,
+    payment: 0,
+    totalPayment: 0
+  }
+
+  if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
+    firstDataPoint = processPayment(firstDataPoint, scale, paymentAmount, applyFirst)
+  }
+
+  data.push(firstDataPoint)
+
+  currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)
+
+  let newData = firstDataPoint
 
   for (; currentTimeStamp < endDateStamp; currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)) {
 
-    const newData = {
+    const newInterestAccrued = currentInterest + ((currentPrincipal + currentInterest) * (dailyInterestRate / 100))
+
+    newData = {
       date: currentTimeStamp,
-      interest: (dailyInterestRate * 100) * (currentInterest + currentPrincipal),
+      interest: newInterestAccrued,
       principal: currentPrincipal,
-      total: 0
+      total: (currentPrincipal + newInterestAccrued),
+      payment: 0,
+      totalPayment: currentTotalPayment
     }
-    newData.total = newData.interest + newData.principal
+
+    if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
+      newData = processPayment(newData, scale, paymentAmount, applyFirst)
+      console.debug(newData, "1st of month")
+    }
 
     data.push(newData)
     currentPrincipal = newData.principal
     currentInterest = newData.interest
+    currentTotalPayment = newData.totalPayment
   }
 
   console.debug(data, "loan data")
@@ -79,4 +119,44 @@ const getZeroedDateStamp = (date: Date) => {
   newDate.setMonth(date.getMonth())
   newDate.setDate(date.getDate())
   return newDate.getTime()
+}
+
+const isDateOnFirstDayOfMonth = (timestamp: number) => {
+  const date = new Date(timestamp);
+  return date.getDate() === 1;
+};
+
+/** Mutates data */
+const processPayment = (data: IAmountDateDataPoint, scale: "constant" | "linear",
+  paymentAmount: number, applyFirst: string
+) => {
+
+  data.payment = paymentAmount
+  data.totalPayment = data.totalPayment + paymentAmount
+
+  let remainder = 0
+  let interestLeft = data.interest
+  let principalLeft = data.principal
+
+  if (applyFirst === "interest") {
+    remainder = interestLeft - paymentAmount
+    if (remainder < 0) {
+      data.interest = 0
+      data.principal = principalLeft + remainder
+    } else {
+      data.interest = remainder
+    }
+  }
+
+  if (applyFirst === "principal") {
+    remainder = principalLeft - paymentAmount
+    if (remainder < 0) {
+      data.principal = 0
+      data.interest = interestLeft + remainder
+    } else {
+      data.principal = remainder
+    }
+  }
+
+  return data
 }

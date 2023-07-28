@@ -1,1 +1,4 @@
-export type swapkeys = "principal" | "rate" | "intervalType" | "startDate" | "endDate" | "loanStartDate" | "loanEndDate";
+export type swapkeys = "principal" | "rate" | "intervalType" 
+    | "startDate" | "endDate"
+    | "loanStartDate" | "loanEndDate"
+    | "scale" | "paymentAmount" | "applyFirst";

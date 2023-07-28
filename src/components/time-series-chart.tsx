@@ -19,7 +19,9 @@ export interface IAmountDateDataPoint {
     total: number,
     principal: number,
     interest: number,
-    date: number
+    date: number,
+    payment: number,
+    totalPayment: number
 }
 
 const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoint[] , domain: number[]}) => {

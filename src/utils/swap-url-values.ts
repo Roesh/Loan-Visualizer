@@ -23,6 +23,7 @@ const multiSwap: (
     //@ts-ignore
     Object.keys(swapValuesMap).forEach((key) => (queryStr[key] = swapValuesMap[key]));
 
+    console.debug(queryStr, "qs")
     return router.push({
         pathname: router.pathname,
         query: queryStr,
