@@ -158,5 +158,7 @@ const processPayment = (data: IAmountDateDataPoint, scale: "constant" | "linear"
     }
   }
 
+  data.total = data.principal + data.interest
+  
   return data
 }
