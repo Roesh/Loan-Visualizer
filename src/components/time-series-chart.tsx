@@ -24,7 +24,7 @@ export interface IAmountDateDataPoint {
     totalPayment: number
 }
 
-const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoint[] , domain: number[]}) => {
+const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoint[], domain: number[] }) => {
     // const domain = [new Date(2023, 7, 15).getTime(), new Date(2023, 7, 24).getTime()]
     return <ResponsiveContainer width="80%" height={200}>
         <AreaChart
@@ -38,6 +38,12 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 left: 0
             }}
         >
+            <defs>
+                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                </linearGradient>
+            </defs>
             <XAxis
                 dataKey="date"
                 scale="time"
@@ -45,7 +51,7 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 type="number"
                 domain={domain}
             />
-            <YAxis dataKey="total" tickFormatter={amountTickFormatter} domain={['dataMin - 5000', 'dataMax + 5000']}/>
+            <YAxis dataKey="total" tickFormatter={amountTickFormatter} domain={['dataMin - 5000', 'dataMax + 5000']} />
             <Tooltip content={<LoanAmountToolTip />} />
             <Area
                 type="monotone"
@@ -54,6 +60,14 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 fill="#ff7300"
                 fillOpacity={0.9}
             />
+            <Area
+                type="monotone"
+                dataKey="principal"
+                stroke="#0074a2"
+                fill="#0074a2"
+                fillOpacity={0.9}
+            />
+            <Area type="monotone" dataKey="totalPayment" stroke="#8884d8" fillOpacity={1} fill="url(#colorUv)" />
         </AreaChart>
     </ResponsiveContainer>
 };

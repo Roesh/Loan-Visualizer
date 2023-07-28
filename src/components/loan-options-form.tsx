@@ -62,7 +62,7 @@ const LoanOptionsForm: React.FC<{}> = () => {
                                 rate: [value.toString()]
                             })}
                         defaultValue={0.05}
-                        precision={2}
+                        precision={5}
                         min={0}
                         step={0.05}
                         max={100}

@@ -18,11 +18,12 @@ const LoanAmountToolTip = (props: any) => {
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <p>{dateFormat(data.date)}</p>
         ---
-        <p>Total: {amountFormatter(data.principal + data.interest, true)}</p>
+        <p>Total Owed: {amountFormatter(data.principal + data.interest, true)}</p>
         <p>Principal:  {amountFormatter(data.principal, true)}</p>
         <p>Interest: {amountFormatter(data.interest, true)}</p>
         {(data.payment > 0) && <p>Payment: {amountFormatter(data.payment, true)}</p>}
-
+        ---
+        <p>Total Paid: {amountFormatter(data.totalPayment, true)}</p>
       </Card>)
     //   <div className="area-chart-tooltip" style={style}>
     //     <p>
