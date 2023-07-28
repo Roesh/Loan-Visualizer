@@ -45,7 +45,7 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 type="number"
                 domain={domain}
             />
-            <YAxis dataKey="total" tickFormatter={amountTickFormatter}/>
+            <YAxis dataKey="total" tickFormatter={amountTickFormatter} domain={['dataMin - 5000', 'dataMax + 5000']}/>
             <Tooltip content={<LoanAmountToolTip />} />
             <Area
                 type="monotone"
