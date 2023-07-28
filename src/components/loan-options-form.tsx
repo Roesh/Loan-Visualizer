@@ -55,7 +55,7 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 </Grid.Col>
                 <Grid.Col span={4}>
                     <NumberInput
-                        label="Daily interest rate (% of principal)"
+                        label="Daily interest rate (%)"
                         value={Number(rate)}
                         onChange={(value) =>
                             multiSwap(router, {
