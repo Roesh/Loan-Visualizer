@@ -26,7 +26,7 @@ export interface IAmountDateDataPoint {
 
 const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoint[], domain: number[] }) => {
     // const domain = [new Date(2023, 7, 15).getTime(), new Date(2023, 7, 24).getTime()]
-    return <ResponsiveContainer width="80%" height={200}>
+    return <ResponsiveContainer width="100%" height={400}>
         <AreaChart
             width={900}
             height={250}
@@ -35,7 +35,7 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 top: 10,
                 right: 0,
                 bottom: 10,
-                left: 0
+                left: 50
             }}
         >
             <defs>
@@ -67,7 +67,7 @@ const TimeSeriesChart = ({ chartData, domain }: { chartData: IAmountDateDataPoin
                 fill="#0074a2"
                 fillOpacity={0.9}
             />
-            <Area type="monotone" dataKey="totalPayment" stroke="#8884d8" fillOpacity={1} fill="url(#colorUv)" />
+            <Area type="monotone" dataKey="totalPayment" stroke="#8884d8" fillOpacity={1} fill="url(#colorTotal)" />
         </AreaChart>
     </ResponsiveContainer>
 };

@@ -1,7 +1,8 @@
+import { debounce } from "@/utils/debounce";
 import { multiSwap } from "@/utils/swap-url-values";
 import { Button, Grid, NumberInput, Paper, Select } from "@mantine/core";
 import { NextRouter, useRouter } from "next/router";
-import React, { Dispatch, SetStateAction, useEffect, useState } from "react";
+import React, { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 
 const PaymentSchedule: React.FC<{}> = () => {
     const router = useRouter()
@@ -32,9 +33,9 @@ const PaymentSchedule: React.FC<{}> = () => {
     
     return <Paper my={"md"} p="sm">
         <PaymentLine
-            scale={scale as 'constant' ?? 'constant'}
-            paymentAmount={Number(paymentAmount ?? 1000)}
-            applyFirst={applyFirst as string ?? 'interest'}
+            scale={router?.query?.scale as 'constant' ?? 'constant'}
+            paymentAmount={Number(router?.query?.paymentAmount ?? 1000)}
+            applyFirst={router?.query?.applyFirst as string ?? 'interest'}
             router={router}
         />
     </Paper>
@@ -46,16 +47,30 @@ const PaymentLine: React.FC<{
     applyFirst: string,
     router: NextRouter
 }> = ({ scale, paymentAmount, applyFirst, router }) => {
+
+    // Debounced function to update the specified query parameter
+    const debouncedUpdateQueryParam = useCallback(
+        debounce((key: string, value: string | number) => {
+
+        console.debug("setting")
+            multiSwap(router, {
+                [key]: [value.toString()],
+            });
+        }, 500),
+        [router]
+    );
+
+    const handleInputChange = (key: string, value: string | number) => {
+        debouncedUpdateQueryParam(key, value);
+    };
+
     return (
         <Grid>
             <Grid.Col span={4}>
                 <Select
                     label="Payment Schedule"
                     value={scale}
-                    onChange={(value) =>
-                        multiSwap(router, {
-                            scale: [value ?? ""]
-                        })}
+                    onChange={(value) => handleInputChange('scale', value ?? 'constant')}
                     data={[
                         { value: 'constant', label: 'Constant Payments (1st of month)' },
                         { value: 'linear', label: 'Linear Ramp' },
@@ -66,10 +81,7 @@ const PaymentLine: React.FC<{
                 <Select
                     label="Apply payment first toward"
                     value={applyFirst}
-                    onChange={(value) =>
-                        multiSwap(router, {
-                            applyFirst: [value ?? ""]
-                        })}
+                    onChange={(value) => handleInputChange('applyFirst', value ?? 'interest')}
                     data={[
                         { value: 'interest', label: 'Interest' },
                         { value: 'principal', label: 'Principal' },
@@ -80,10 +92,7 @@ const PaymentLine: React.FC<{
                 <NumberInput
                     label="Payment amount"
                     value={paymentAmount}
-                    onChange={(value) =>
-                        multiSwap(router, {
-                            paymentAmount: [value.toString()]
-                        })}
+                    onChange={(value) => handleInputChange('paymentAmount', value)}
                     precision={2}
                     min={0}
                     step={100}

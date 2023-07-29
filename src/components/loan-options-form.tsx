@@ -1,8 +1,9 @@
+import { debounce } from "@/utils/debounce";
 import { multiSwap } from "@/utils/swap-url-values";
 import { Button, Grid, Group, NumberInput, Paper } from "@mantine/core"
 import { DateInput } from "@mantine/dates";
 import { NextRouter, Router, useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const LoanOptionsForm: React.FC<{}> = () => {
     const router = useRouter()
@@ -35,6 +36,19 @@ const LoanOptionsForm: React.FC<{}> = () => {
         }
     }, [router])
 
+    // Debounced function to update the specified query parameter
+    const debouncedUpdateQueryParam = useCallback(
+        debounce((key: string, value: string | number) => {
+            multiSwap(router, {
+                [key]: [value.toString()],
+            });
+        }, 500),
+        [router]
+    );
+
+    const handleInputChange = (key: string, value: string | number) => {
+        debouncedUpdateQueryParam(key, value);
+    };
 
     return (
         <Paper p={"sm"}>
@@ -42,11 +56,8 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 <Grid.Col span={4}>
                     <NumberInput
                         label="Initial Principal"
-                        value={Number(principal)}
-                        onChange={(value) =>
-                            multiSwap(router, {
-                                principal: [value.toString()]
-                            })}
+                        value={Number(router?.query?.principal)}
+                        onChange={(value) => handleInputChange('principal', value)}
                         precision={2}
                         min={0}
                         step={1000}
@@ -56,11 +67,8 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 <Grid.Col span={4}>
                     <NumberInput
                         label="Daily interest rate (%)"
-                        value={Number(rate)}
-                        onChange={(value) =>
-                            multiSwap(router, {
-                                rate: [value.toString()]
-                            })}
+                        value={Number(router?.query?.rate)}
+                        onChange={(value) => handleInputChange('rate', value)}
                         defaultValue={0.05}
                         precision={5}
                         min={0}
@@ -71,11 +79,8 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 <Grid.Col span={4}>
                     <DateInput
                         label="Loan Start Date"
-                        value={loanStartDate ? new Date(loanStartDate as string) : undefined}
-                        onChange={(value) =>
-                            multiSwap(router, {
-                                loanStartDate: [value?.toDateString() ?? ""]
-                            })}
+                        value={router?.query?.loanStartDate ? new Date(router?.query?.loanStartDate as string) : undefined}
+                        onChange={(value) => handleInputChange('loanStartDate', value?.toDateString() ?? '')}
                         placeholder="Loan Start Date"
                         maw={400}
                     />
@@ -83,11 +88,8 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 <Grid.Col span={4}>
                     <DateInput
                         label="Loan End Date"
-                        value={loanEndDate ? new Date(loanEndDate as string) : undefined}
-                        onChange={(value) =>
-                            multiSwap(router, {
-                                loanEndDate: [value?.toDateString() ?? ""]
-                            })}
+                        value={router?.query?.loanEndDate ? new Date(router?.query?.loanEndDate as string) : undefined}
+                        onChange={(value) => handleInputChange('loanEndDate', value?.toDateString() ?? '')}
                         placeholder="Loan End Date"
                         maw={400}
                     />

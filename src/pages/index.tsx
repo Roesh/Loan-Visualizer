@@ -4,10 +4,11 @@ import styles from '@/styles/Home.module.css'
 import { useRouter } from 'next/router'
 import TimeSeriesChart, { IAmountDateDataPoint } from '@/components/time-series-chart'
 import { DateRangeSelector, IDateRange } from '@/components/date-range-selector'
-import { useState } from 'react'
+import { Dispatch, SetStateAction, useState } from 'react'
 import { LoanOptionsForm } from '@/components/loan-options-form'
 import { PaymentSchedule } from '@/components/payment-schedule'
-import { Button } from '@mantine/core'
+import { Box, Button, LoadingOverlay, Progress } from '@mantine/core'
+import { setegid } from 'process'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -15,14 +16,130 @@ export default function Home() {
   const router = useRouter()
   const [dateRange, setDateRange] = useState<IDateRange>({ start: new Date(), end: new Date() })
   const [data, setData] = useState<IAmountDateDataPoint[]>([])
+  const [generating, setGenerating] = useState<boolean>(false)
+  const [generationPercent, setGenerationPercent] = useState(0)
 
   const domain = [new Date(dateRange.start ?? 0).getTime(), new Date(dateRange.end ?? 0).getTime()]
 
   const { principal, rate, intervalType, loanStartDate, loanEndDate, startDate, endDate
     , scale, paymentAmount, applyFirst } = router.query;
 
-  const createGraphData = () => setData(generateGraphData(Number(principal), new Date(loanStartDate as string),
-    new Date(loanEndDate as string), Number(rate), scale as "constant", Number(paymentAmount), applyFirst as "interest") ?? [])
+  const generateGraphData = async (initialPrincipal: number, loanStartDate: Date,
+    loanEndDate: Date, dailyInterestRate: number, scale: "constant" | "linear",
+    paymentAmount: number, applyFirst: string, setGenerationPercent: Dispatch<SetStateAction<number>>
+  ) => {
+    const startDateStamp = getZeroedDateStamp(loanStartDate)
+    const endDateStamp = getZeroedDateStamp(loanEndDate)
+
+    const totalTimeSpan = endDateStamp - startDateStamp;
+    const initialTime = startDateStamp;
+
+    if (startDateStamp > endDateStamp) {
+      alert("Start Date cannot be after end date")
+      return;
+    }
+
+    const data: IAmountDateDataPoint[] = []
+
+    const sparseData: IAmountDateDataPoint[] = []
+    const returnSparseData = timeDifferenceIsGreaterThanThreeYears(startDateStamp, endDateStamp)
+
+    let currentTimeStamp = startDateStamp
+    let currentPrincipal = initialPrincipal
+    let currentInterest = 0
+    let currentTotalPayment = 0
+
+    let firstDataPoint = {
+      date: currentTimeStamp,
+      interest: 0,
+      principal: currentPrincipal,
+      total: currentPrincipal,
+      payment: 0,
+      totalPayment: 0
+    }
+
+    if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
+      firstDataPoint = processPayment(firstDataPoint, scale, paymentAmount, applyFirst)
+    }
+
+    data.push(firstDataPoint)
+    sparseData.push(firstDataPoint)
+
+    currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)
+
+    let newData = firstDataPoint
+    let newInterestAccrued
+
+    for (; currentTimeStamp < endDateStamp; currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)) {
+
+      newInterestAccrued = currentInterest + ((currentPrincipal + currentInterest) * (dailyInterestRate / 100))
+
+      newData = {
+        date: currentTimeStamp,
+        interest: newInterestAccrued,
+        principal: currentPrincipal,
+        total: (currentPrincipal + newInterestAccrued),
+        payment: 0,
+        totalPayment: currentTotalPayment
+      }
+
+      if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
+        newData = processPayment(newData, scale, paymentAmount, applyFirst)
+        returnSparseData && sparseData.push(newData)
+        console.debug(newData, "1st of month")
+      }
+
+      data.push(newData)
+      currentPrincipal = newData.principal
+      currentInterest = newData.interest
+      currentTotalPayment = newData.totalPayment
+
+      if (currentPrincipal + currentInterest <= 0) {
+        data.push({...newData, date: newData.date + 1000 * 60 * 60 * 24 * 60})
+        sparseData.push({...newData, date: newData.date + 1000 * 60 * 60 * 24 * 60})
+        break;
+      }
+
+      const elapsedTime = currentTimeStamp - initialTime;
+      const progressPercent = Number(((elapsedTime / totalTimeSpan) * 100).toFixed(0));
+
+      // Update the progress percentage only if it has changed (throttling)
+      if (progressPercent !== generationPercent) {
+        console.debug(progressPercent)
+        setGenerationPercent(progressPercent);
+      }
+    }
+
+    // console.debug(data, "loan data")
+    return returnSparseData ? sparseData : data
+  }
+
+  const createGraphData = async () => {
+    setGenerating(true)
+    setGenerationPercent(0);
+
+    setTimeout(async () => {
+      try {
+        setData(await generateGraphData(
+          Number(principal),
+          new Date(loanStartDate as string),
+          new Date(loanEndDate as string),
+          Number(rate),
+          scale as "constant",
+          Number(paymentAmount),
+          applyFirst as "interest",
+          setGenerationPercent
+        ) ?? []);
+      } catch (ex) {
+        console.debug(ex);
+      } finally {
+        setGenerating(false);
+        setGenerationPercent(0);
+      }
+    }, 0);
+
+
+  };
 
   return (
     <>
@@ -33,79 +150,25 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={`${styles.main} ${inter.className}`}>
-        <TimeSeriesChart chartData={data} domain={domain} />
-        <Button my={"sm"} onClick={createGraphData}>Generate Data</Button>
-        {/* <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} /> */}
-        <LoanOptionsForm />
-        <PaymentSchedule />
-      </main>
+        <Box maw={'90%'} pos="relative">
+          <LoadingOverlay visible={generating} overlayBlur={2} overlayOpacity={0.3} overlayColor="#c5c5c5" />
+          <TimeSeriesChart chartData={data} domain={domain} />
+          <Button my={"sm"} onClick={createGraphData} disabled={generating}>Generate Data</Button>
+          {/* {generating && <Progress value={generationPercent} />} */}
+          {/* <DateRangeSelector dateRange={dateRange} setDateRange={setDateRange} /> */}
+          <LoanOptionsForm />
+          <PaymentSchedule />
+        </Box>
+
+      </main >
     </>
   )
 }
 
-const generateGraphData = (initialPrincipal: number, loanStartDate: Date,
-  loanEndDate: Date, dailyInterestRate: number, scale: "constant" | "linear",
-  paymentAmount: number, applyFirst: string
-) => {
-  const startDateStamp = getZeroedDateStamp(loanStartDate)
-  const endDateStamp = getZeroedDateStamp(loanEndDate)
-
-  if (startDateStamp > endDateStamp) {
-    alert("Start Date cannot be after end date")
-    return;
-  }
-
-  const data: IAmountDateDataPoint[] = []
-  let currentTimeStamp = startDateStamp
-  let currentPrincipal = initialPrincipal
-  let currentInterest = 0
-  let currentTotalPayment = 0
-
-  let firstDataPoint = {
-    date: currentTimeStamp,
-    interest: 0,
-    principal: currentPrincipal,
-    total: currentPrincipal,
-    payment: 0,
-    totalPayment: 0
-  }
-
-  if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
-    firstDataPoint = processPayment(firstDataPoint, scale, paymentAmount, applyFirst)
-  }
-
-  data.push(firstDataPoint)
-
-  currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)
-
-  let newData = firstDataPoint
-
-  for (; currentTimeStamp < endDateStamp; currentTimeStamp = getNextDayTimeStamp(currentTimeStamp)) {
-
-    const newInterestAccrued = currentInterest + ((currentPrincipal + currentInterest) * (dailyInterestRate / 100))
-
-    newData = {
-      date: currentTimeStamp,
-      interest: newInterestAccrued,
-      principal: currentPrincipal,
-      total: (currentPrincipal + newInterestAccrued),
-      payment: 0,
-      totalPayment: currentTotalPayment
-    }
-
-    if (isDateOnFirstDayOfMonth(currentTimeStamp)) {
-      newData = processPayment(newData, scale, paymentAmount, applyFirst)
-      console.debug(newData, "1st of month")
-    }
-
-    data.push(newData)
-    currentPrincipal = newData.principal
-    currentInterest = newData.interest
-    currentTotalPayment = newData.totalPayment
-  }
-
-  console.debug(data, "loan data")
-  return data
+const timeDifferenceIsGreaterThanThreeYears = (startTimeStamp: number, endTimeStamp: number) => {
+  // Calculate the number of milliseconds in three years
+  const threeYearsInMilliseconds = 3 * 365 * 24 * 60 * 60 * 1000;
+  return ((endTimeStamp - startTimeStamp) > threeYearsInMilliseconds)
 }
 
 const getNextDayTimeStamp = (timestamp: number) => {
@@ -114,7 +177,7 @@ const getNextDayTimeStamp = (timestamp: number) => {
 }
 
 const getZeroedDateStamp = (date: Date) => {
-  const newDate = new Date(2020, 1, 1)
+  const newDate = new Date(Date.UTC(2020, 1, 1))
   newDate.setFullYear(date.getFullYear())
   newDate.setMonth(date.getMonth())
   newDate.setDate(date.getDate())
@@ -122,7 +185,7 @@ const getZeroedDateStamp = (date: Date) => {
 }
 
 const isDateOnFirstDayOfMonth = (timestamp: number) => {
-  const date = new Date(timestamp);
+  const date = new Date(new Date(timestamp).toUTCString());
   return date.getDate() === 1;
 };
 
@@ -159,6 +222,6 @@ const processPayment = (data: IAmountDateDataPoint, scale: "constant" | "linear"
   }
 
   data.total = data.principal + data.interest
-  
+
   return data
 }
