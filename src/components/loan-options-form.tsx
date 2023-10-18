@@ -10,18 +10,20 @@ const LoanOptionsForm: React.FC<{}> = () => {
 
     const { principal, rate, loanStartDate, loanEndDate, } = router.query
 
+    console.debug(principal, "ads")
+
     useEffect(() => {
         if (
             router.isReady &&
-            (principal === undefined || principal === '') ||
-            (rate === undefined || rate === '') ||
-            (loanStartDate === undefined || loanStartDate === '') ||
-            (loanEndDate === undefined || loanEndDate === '')
+            (router.query.principal === undefined || router.query.principal === '') ||
+            (router.query.rate === undefined || router.query.rate === '') ||
+            (router.query.loanStartDate === undefined || router.query.loanStartDate === '') ||
+            (router.query.loanEndDate === undefined || router.query.loanEndDate === '')
         ) {
-            const defaultPrincipal = principal || '340000';
-            const defaultRate = rate || '0.081';
-            const defaultLoanStartDate = loanStartDate || new Date().toDateString();
-            const defaultLoanEndDate = loanEndDate || new Date(+new Date() + 1000 * 60 * 60 * 24 * 90).toDateString();
+            const defaultPrincipal = router.query.principal || '340000';
+            const defaultRate = router.query.rate || '0.081';
+            const defaultLoanStartDate = router.query.loanStartDate || new Date().toDateString();
+            const defaultLoanEndDate = router.query.loanEndDate || new Date(+new Date() + 1000 * 60 * 60 * 24 * 90).toDateString();
 
             router.push({
                 pathname: router.pathname,
@@ -34,7 +36,7 @@ const LoanOptionsForm: React.FC<{}> = () => {
                 },
             });
         }
-    }, [router])
+    }, [router.query.principal, router.query.rate, router.query.loanStartDate, router.query.loanEndDate])
 
     // Debounced function to update the specified query parameter
     const debouncedUpdateQueryParam = useCallback(
@@ -98,6 +100,11 @@ const LoanOptionsForm: React.FC<{}> = () => {
         </Paper>)
 }
 
+export async function getServerSideProps() {
+    // You can add logic here to fetch data from your database or external APIs
+    // and pass it as props to your component
+    return {};
+}
 
 export { LoanOptionsForm }
 
